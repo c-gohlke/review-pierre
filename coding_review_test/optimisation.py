@@ -32,7 +32,7 @@ def optimise(data: Data) -> Schedule:
 
     constraints = {
         "initial_soe": soe[0] == INIT_SOE,
-        "transition_function": soe[1:] == soe[:-1] + (charge - discharge) * EFFICIENCY * TIMESTEP_SIZE,
+        "transition_function": soe[1:] == soe[:-1] + (EFFICIENCY * charge - discharge / EFFICIENCY) * TIMESTEP_SIZE,
         "min_soe": soe >= 0,
         "max_soe": soe <= BATTERY_CAPACITY,
         "max_charge": charge <= MAX_POWER,

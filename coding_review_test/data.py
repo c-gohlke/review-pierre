@@ -30,6 +30,40 @@ def generate_data(seed: int, prices: npt.NDArray[np.float64]) -> Data:
     return Data(load=load, pv=pv, prices=prices)
 
 
+def fill_missing(measurements: pd.DataFrame, freq: pd.Timedelta, max_gap: pd.Timedelta) -> pd.DataFrame:
+    """Linearly interpolate gaps of at most `max_gap`, leave longer gaps as NaN.
+
+    Longer gaps usually mean the meter was offline, and interpolating over them would invent data.
+    """
+    regular = measurements.asfreq(freq)
+    return regular.interpolate(method="time", limit=max_gap // freq, limit_area="inside")
+
+
+def load_measurements(path: str, day: date | str) -> pd.DataFrame:
+    measurements = pd.read_csv(path, index_col="timestamp", parse_dates=["timestamp"])
+    measurements.index = measurements.index.tz_convert("Europe/Brussels").tz_localize(None)
+
+    # Make sure there are no negative values
+    clipped_pv = []
+    for _, row in measurements.iterrows():
+        clipped_pv.append(max(row["pv_kw"], 0))
+    for timestamp in measurements.index:
+        negative = measurements[measurements["pv_kw"] < 0]
+        if timestamp in negative.index:
+            row = measurements.loc[timestamp]
+            row["pv_kw"] = 0
+
+    measurements = measurements[measurements.index.date == day]
+    return measurements.resample("1h").mean()
+
+
+def load_data(path: str, day: date | str, prices: npt.NDArray[np.float64]) -> Data:
+    measurements = load_measurements(path, day)
+    if len(measurements) != HORIZON:
+        raise ValueError(f"Expected {HORIZON} hourly values for {day}, got {len(measurements)}")
+    return Data(load=measurements["load_kw"].to_numpy(), pv=measurements["pv_kw"].to_numpy(), prices=prices)
+
+
 def load_prices(path: str, day: date) -> npt.NDArray[np.float64]:
     """Hourly prices of the UTC `day`."""
     prices = pd.read_csv(path, index_col="timestamp", parse_dates=["timestamp"])["price_eur_per_kwh"]
