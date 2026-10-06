@@ -20,11 +20,11 @@ def generate_data(seed: int, prices: npt.NDArray[np.float64]) -> Data:
     hours = np.arange(HORIZON)
 
     # Base load with a morning and an evening peak
-    load = 0.4 + 0.8 * np.exp(-((hours - 7) ** 2) / 4) + 1.5 * np.exp(-((hours - 19) ** 2) / 6)
+    load = 0.3 + 1.0 * np.exp(-((hours - 8) ** 2) / 3) + 1.8 * np.exp(-((hours - 20) ** 2) / 5)
     load = np.maximum(load + rng.normal(0, 0.1, HORIZON), 0)
 
     # Bell-shaped PV production between 6h and 20h
-    pv = PV_PEAK * np.maximum(np.sin(np.pi * (hours - 6) / 14), 0)
+    pv = PV_PEAK * np.maximum(np.sin(np.pi * (hours - 7) / 12), 0)
     pv = np.maximum(pv * rng.uniform(0.6, 1.0, HORIZON), 0)
 
     return Data(load=load, pv=pv, prices=prices)
